@@ -1,2 +1,0 @@
-# FishChatServerCommercial
-FishChatServer commercial version

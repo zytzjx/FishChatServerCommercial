@@ -1,24 +1,21 @@
-
-
 package mongo_store
 
 import (
-	"sync"
-	"time"
+	"goProject/log"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"goProject/log"
+	"sync"
+	"time"
 )
 
 type MongoStoreOptions struct {
-
 }
 
 type MongoStore struct {
-	opts            *MongoStoreOptions
-	session         *mgo.Session
-	
-	rwMutex         sync.Mutex
+	opts    *MongoStoreOptions
+	session *mgo.Session
+
+	rwMutex sync.Mutex
 }
 
 func NewMongoStore(ip string, port string, user string, password string) *MongoStore {
@@ -28,115 +25,78 @@ func NewMongoStore(ip string, port string, user string, password string) *MongoS
 	} else {
 		url = user + ":" + password + "@" + ip + port
 	}
-	
-	log.Info("connect to mongo : " , url)
+
+	log.Info("connect to mongo : ", url)
 	maxWait := time.Duration(5 * time.Second)
 	session, err := mgo.DialWithTimeout(url, maxWait)
 	session.SetMode(mgo.Monotonic, true)
 	if err != nil {
 		panic(err)
 	}
-	return &MongoStore {
-		session : session,
+	return &MongoStore{
+		session: session,
 	}
 }
 
-func (self *MongoStore)Init() {
+func (self *MongoStore) Init() {
 	//self.session.DB("im").C("client_info")
-	
 }
 
-func (self *MongoStore)Update(db string, c string, data interface{}) error {
-	log.Info("MongoStore Update")
+//新增和修改
+func (self *MongoStore) Upsert(db string, c string, data interface{}) error {
+	log.Info("MongoStore Upsert")
 	var err error
 	self.rwMutex.Lock()
 	defer self.rwMutex.Unlock()
-	
+
 	op := self.session.DB(db).C(c)
-	
+
 	switch data.(type) {
-		case *SessionStoreData:
-			cid := data.(*SessionStoreData).ClientID
-			log.Info("cid : " , cid)
-			_, err = op.Upsert(bson.M{"ClientID": cid}, data.(*SessionStoreData))
-			if err != nil {
-				log.Error(err.Error())
-				return err
-			}
-		
-		case *TopicStoreData:
-			topicName := data.(*TopicStoreData).TopicName
-			log.Info("topicName : " , topicName)
-			_, err = op.Upsert(bson.M{"TopicName": topicName}, data.(*TopicStoreData))
-			if err != nil {
-				log.Error(err.Error())
-				return err
-			}
+	//用户表
+	case *SessionStoreData:
+		cid := data.(*SessionStoreData).ClientID
+		log.Info("cid : ", cid)
+		_, err = op.Upsert(bson.M{"ClientID": cid}, data.(*SessionStoreData))
+		if err != nil {
+			log.Error(err.Error())
+			return err
+		}
+	//添加群组
+	case *TopicStoreData:
+		TopicID := data.(*TopicStoreData).TopicID
+		log.Info("TopicID : ", TopicID)
+		_, err = op.Upsert(bson.M{"TopicID": TopicID}, data.(*TopicStoreData))
+		if err != nil {
+			log.Error(err.Error())
+			return err
+		}
+	//P2P消息记录表
+	case *P2PRecordMessageData:
+		//消息记录储存
+		FromID := data.(*P2PRecordMessageData).FromID
+		log.Info("save p2p message : ", FromID)
+		_, err = op.Upsert(bson.M{"From": FromID}, data.(*P2PRecordMessageData))
+		if err != nil {
+			log.Error(err.Error())
+			return err
+		}
+	//Topic消息记录表
+	case *TopicRecordMessageData:
+		//消息记录储存
+		FromID := data.(*TopicRecordMessageData).FromID
+		log.Info("save topic message : ", FromID)
+		_, err = op.Upsert(bson.M{"From": FromID}, data.(*TopicRecordMessageData))
+		if err != nil {
+			log.Error(err.Error())
+			return err
+		}
 	}
-	
+
 	return err
 }
 
-func (self *MongoStore)UpdateSessionAlive(db string, c string, cid string, alive bool) error {
-	var err error
-	self.rwMutex.Lock()
-	defer self.rwMutex.Unlock()
-	
-	op := self.session.DB(db).C(c)	
-	
-	//err = op.Update(bson.M{"ClientID": cid}, bson.M{"Alive": alive})
-	
-	err = op.Update(bson.M{"ClientID": cid}, bson.M{"$set": bson.M{"Alive": alive}})
-	if err != nil {
-		log.Error(err.Error())
-		return err
-	}	
-	
-	return err	
-}
+//删除
 
-func (self *MongoStore)GetSessionFromCid(db string, c string, cid string) (*SessionStoreData, error) {
-	log.Info("MongoStore GetSessionFromCid")
-	log.Info(cid)
-	var err error
-	self.rwMutex.Lock()
-	defer self.rwMutex.Unlock()	
-	
-	op := self.session.DB(db).C(c)
-	
-	var result *SessionStoreData
-	//var result interface{}
-	
-	err = op.Find(bson.M{"ClientID": cid}).One(&result)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, err
-	}
-	
-	return result, nil
-}
-
-
-func (self *MongoStore)IsSessionAlive(db string, c string, cid string) (bool, error) {
-	var err error
-	self.rwMutex.Lock()
-	defer self.rwMutex.Unlock()	
-	op := self.session.DB(db).C(c)
-	
-	var result *SessionStoreData
-	//var result interface{}
-	
-	err = op.Find(bson.M{"ClientID": cid}).One(&result)
-	if err != nil {
-		log.Error(err.Error())
-		return false, err
-	}
-	
-	return result.Alive, err
-	
-}
-
-
-func (self *MongoStore)Close() {
+func (self *MongoStore) Close() {
 	self.session.Close()
 }
