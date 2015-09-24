@@ -1,7 +1,0 @@
-{
-	"TransportProtocols" : "tcp",
-	"LogFile"            : "client.log",
-	"GatewayServer"      : "gw.60talk.com:17000",
-	"HeartBeatTime"      : 5,
-	"Expire"             : 40
-}
