@@ -1,0 +1,7 @@
+{
+	"TransportProtocols" : "tcp",
+	"LogFile"            : "client.log",
+	"GatewayServer"      : "192.168.60.105:17000",
+	"HeartBeatTime"      : 5,
+	"Expire"             : 40
+}

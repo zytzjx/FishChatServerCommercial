@@ -1,0 +1,14 @@
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+
+	a := 111
+	func(cc int) {
+		fmt.Println(cc)
+	}(a)
+
+}
